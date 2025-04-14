@@ -1,5 +1,6 @@
-# audit_app.py
 import streamlit as st
+st.set_page_config(page_title="QuantumShift Labs - Deep-Tech Audit", page_icon="🚀")
+
 import sqlite3
 import pandas as pd
 import json
@@ -21,7 +22,7 @@ if not os.path.exists(FONT_FILE):
     st.info("Downloading required font file (DejaVuSans.ttf)...")
     try:
         response = requests.get(FONT_URL)
-        response.raise_for_status()  # Raises stored HTTPError, if one occurred.
+        response.raise_for_status()  # Check for HTTP errors
         with open(FONT_FILE, "wb") as f:
             f.write(response.content)
         st.success("Font file downloaded successfully.")
@@ -148,7 +149,7 @@ def grade_readiness(startup_data):
     }
 
 # --------------------------
-# Pages
+# Application Pages
 # --------------------------
 def deeptech_audit_page(conn):
     st.title("🚀 QuantumShift Labs Deep-Tech Readiness Audit")
@@ -204,6 +205,7 @@ def deeptech_audit_page(conn):
                         file_name=os.path.basename(report_path),
                         mime="application/pdf"
                     )
+                
                 st.markdown("---")
                 st.markdown("""
                     ### Next Steps
@@ -251,8 +253,6 @@ def premium_upgrade_page():
 # Main Application with Navigation
 # --------------------------
 def main():
-    st.set_page_config(page_title="QuantumShift Labs - Deep-Tech Audit", page_icon="🚀")
-    
     conn = get_db_connection()
     initialize_db(conn)
     update_db_schema(conn)
@@ -266,7 +266,5 @@ def main():
     elif page == "Premium Upgrade":
         premium_upgrade_page()
     
-    # (For production, consider a more robust lifecycle management of DB connections.)
-
 if __name__ == '__main__':
     main()
