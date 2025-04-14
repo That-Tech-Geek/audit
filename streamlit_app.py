@@ -9,6 +9,24 @@ import time
 import os
 import plotly.express as px
 from datetime import datetime
+import requests  # Used to download the font file if needed
+
+# --------------------------
+# Download DejaVuSans.ttf if missing
+# --------------------------
+FONT_FILE = 'DejaVuSans.ttf'
+FONT_URL = "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf"
+
+if not os.path.exists(FONT_FILE):
+    st.info("Downloading required font file (DejaVuSans.ttf)...")
+    try:
+        response = requests.get(FONT_URL)
+        response.raise_for_status()  # Raises stored HTTPError, if one occurred.
+        with open(FONT_FILE, "wb") as f:
+            f.write(response.content)
+        st.success("Font file downloaded successfully.")
+    except Exception as e:
+        st.error(f"Unable to download font file. Please download it manually from {FONT_URL} and place it in the app directory.\nError: {e}")
 
 # --------------------------
 # Database Setup and Schema Update
@@ -56,17 +74,13 @@ def update_db_schema(conn):
 # --------------------------
 # Utility: PDF Report Generation with Unicode Support
 # --------------------------
-# Make sure 'DejaVuSans.ttf' is in the same directory as this script.
 class PDFReport(FPDF):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Add a Unicode font (DejaVu Sans)
-        self.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
-        # Optionally add variants for bold/italic if you have them.
-        # self.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
+        self.add_font('DejaVu', '', FONT_FILE, uni=True)
     
     def header(self):
-        # Use our Unicode font
         self.set_font('DejaVu', '', 14)
         self.cell(0, 10, 'QuantumShift Labs Deep-Tech Readiness Report', 0, 1, 'C')
         self.ln(5)
@@ -81,23 +95,19 @@ def generate_pdf_report(startup_name, analysis):
     pdf.set_font('DejaVu', '', 12)
     pdf.add_page()
     
-    # Report Title and Timestamp
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     pdf.cell(200, 10, txt=f"Startup: {startup_name}", ln=1, align='L')
     pdf.cell(200, 10, txt=f"Report Generated: {now_str}", ln=1, align='L')
     pdf.ln(5)
     
-    # Scores Table
     pdf.cell(200, 10, txt="Category Scores:", ln=1)
     for category, score in analysis['category_scores'].items():
         pdf.cell(200, 10, txt=f"{category.replace('_', ' ').title()}: {score}/10", ln=1)
     pdf.ln(5)
 
-    # Overall Score
     pdf.cell(200, 10, txt=f"Overall Score: {analysis['overall_score']}/10", ln=1)
     pdf.ln(5)
     
-    # Recommendations
     pdf.cell(200, 10, txt="Strategic Recommendations:", ln=1)
     if analysis['recommendations']:
         for rec in analysis['recommendations']:
@@ -105,7 +115,6 @@ def generate_pdf_report(startup_name, analysis):
     else:
         pdf.cell(200, 10, txt="No recommendations provided.", ln=1)
     
-    # Save PDF Report
     safe_name = startup_name.replace(' ', '_')
     reports_dir = 'reports'
     os.makedirs(reports_dir, exist_ok=True)
@@ -150,7 +159,7 @@ def deeptech_audit_page(conn):
         with col1:
             name = st.text_input("Startup Name", placeholder="Enter your startup's name")
             sector = st.selectbox("Primary Sector", 
-                            ["Quantum Computing", "Neurotech", "Climate AI", "Other"])
+                                   ["Quantum Computing", "Neurotech", "Climate AI", "Other"])
         with col2:
             website = st.text_input("Website", placeholder="https://")
             email = st.text_input("Contact Email", placeholder="example@domain.com")
@@ -162,19 +171,14 @@ def deeptech_audit_page(conn):
             st.error("Please fill out all required fields.")
         else:
             with st.spinner('Analyzing your deep-tech readiness...'):
-                analysis = grade_readiness({
-                    'name': name,
-                    'sector': sector,
-                    'website': website
-                })
+                analysis = grade_readiness({'name': name, 'sector': sector, 'website': website})
                 report_path = generate_pdf_report(name, analysis)
-                time.sleep(2)  # Simulate processing time
+                time.sleep(2)
                 st.success("Analysis complete!")
                 st.balloons()
                 
                 created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
-                # Store submission with analysis
                 c = conn.cursor()
                 c.execute('''INSERT INTO startups 
                            (name, sector, website, email, created_at, overall_score, category_scores, recommendations)
@@ -262,7 +266,7 @@ def main():
     elif page == "Premium Upgrade":
         premium_upgrade_page()
     
-    # Note: For a full production app, manage your DB connection lifecycle more robustly.
+    # (For production, consider a more robust lifecycle management of DB connections.)
 
 if __name__ == '__main__':
     main()
