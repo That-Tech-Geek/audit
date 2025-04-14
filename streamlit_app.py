@@ -1,3 +1,4 @@
+# audit_app.py
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -35,13 +36,10 @@ def initialize_db(conn):
     ''')
     conn.commit()
 
-# Optionally upgrade schema if new columns are missing.
 def update_db_schema(conn):
     c = conn.cursor()
-    # Get existing columns
     c.execute("PRAGMA table_info(startups)")
     columns = [info[1] for info in c.fetchall()]
-    # Check for new columns if not in table, then add them
     schema_updates = {
         "overall_score": "ALTER TABLE startups ADD COLUMN overall_score INTEGER",
         "category_scores": "ALTER TABLE startups ADD COLUMN category_scores TEXT",
@@ -56,25 +54,32 @@ def update_db_schema(conn):
                 st.error(f"Error updating DB schema for {col}: {e}")
 
 # --------------------------
-# Utility: PDF Report Generation with Header/Footer
+# Utility: PDF Report Generation with Unicode Support
 # --------------------------
+# Make sure 'DejaVuSans.ttf' is in the same directory as this script.
 class PDFReport(FPDF):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add a Unicode font (DejaVu Sans)
+        self.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+        # Optionally add variants for bold/italic if you have them.
+        # self.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
+    
     def header(self):
-        # Title
-        self.set_font('Arial', 'B', 14)
+        # Use our Unicode font
+        self.set_font('DejaVu', '', 14)
         self.cell(0, 10, 'QuantumShift Labs Deep-Tech Readiness Report', 0, 1, 'C')
         self.ln(5)
 
     def footer(self):
-        # Page number at the bottom
         self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
+        self.set_font('DejaVu', '', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
 def generate_pdf_report(startup_name, analysis):
     pdf = PDFReport()
+    pdf.set_font('DejaVu', '', 12)
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
     
     # Report Title and Timestamp
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -112,14 +117,12 @@ def generate_pdf_report(startup_name, analysis):
 # Mock AI Grading System
 # --------------------------
 def grade_readiness(startup_data):
-    # Simulated scores for demonstration purposes
     scores = {
         'tech_maturity': random.randint(3, 8),
         'talent': random.randint(4, 9),
         'funding': random.randint(2, 7),
         'ip_strength': random.randint(5, 10)
     }
-    
     recommendations = []
     if scores['tech_maturity'] < 5:
         recommendations.append("🔬 Partner with a quantum computing research lab.")
@@ -169,10 +172,9 @@ def deeptech_audit_page(conn):
                 st.success("Analysis complete!")
                 st.balloons()
                 
-                # Convert current timestamp to a string for SQLite
                 created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
-                # Store submission along with analysis
+                # Store submission with analysis
                 c = conn.cursor()
                 c.execute('''INSERT INTO startups 
                            (name, sector, website, email, created_at, overall_score, category_scores, recommendations)
@@ -183,7 +185,6 @@ def deeptech_audit_page(conn):
                            json.dumps(analysis['recommendations'])))
                 conn.commit()
                 
-                # Display metrics
                 st.subheader(f"Overall Readiness Score: {analysis['overall_score']}/10")
                 for category, score in analysis['category_scores'].items():
                     st.progress(score/10, text=f"{category.replace('_', ' ').title()} ({score}/10)")
@@ -220,7 +221,6 @@ def audit_history_page(conn):
         df = pd.DataFrame(rows, columns=["ID", "Name", "Sector", "Website", "Email", "Submitted On", "Overall Score"])
         st.dataframe(df)
         
-        # Chart: Average Overall Score by Sector
         avg_scores = df.groupby("Sector")["Overall Score"].mean().reset_index()
         fig = px.bar(avg_scores, x="Sector", y="Overall Score", 
                      title="Average Overall Score by Sector", 
@@ -238,24 +238,21 @@ def premium_upgrade_page():
         - Regulatory risk assessment
         - Dedicated expert consultation 
         """)
-    # Simulate a payment process
     if st.button("Proceed with Payment (Simulated)"):
         with st.spinner("Processing payment..."):
             time.sleep(2)
         st.success("Payment successful! Our team will contact you shortly to schedule a consultation.")
-    
+
 # --------------------------
 # Main Application with Navigation
 # --------------------------
 def main():
     st.set_page_config(page_title="QuantumShift Labs - Deep-Tech Audit", page_icon="🚀")
     
-    # Establish database connection and update schema if needed.
     conn = get_db_connection()
     initialize_db(conn)
     update_db_schema(conn)
     
-    # Sidebar navigation
     page = st.sidebar.radio("Navigation", ["Deep-Tech Audit", "Audit History", "Premium Upgrade"])
     
     if page == "Deep-Tech Audit":
@@ -265,8 +262,7 @@ def main():
     elif page == "Premium Upgrade":
         premium_upgrade_page()
     
-    # Close the connection on shutdown
-    # (If your app grows, consider using context managers or session state to manage DB connections.)
+    # Note: For a full production app, manage your DB connection lifecycle more robustly.
 
 if __name__ == '__main__':
     main()
