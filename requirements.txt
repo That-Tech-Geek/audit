@@ -1,0 +1,6 @@
+streamlit
+sqlite3
+pandas
+fpdf
+random
+time
