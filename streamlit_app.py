@@ -1,4 +1,3 @@
-# audit_app.py
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -170,12 +169,15 @@ def deeptech_audit_page(conn):
                 st.success("Analysis complete!")
                 st.balloons()
                 
+                # Convert current timestamp to a string for SQLite
+                created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
                 # Store submission along with analysis
                 c = conn.cursor()
                 c.execute('''INSERT INTO startups 
                            (name, sector, website, email, created_at, overall_score, category_scores, recommendations)
                            VALUES (?,?,?,?,?,?,?,?)''',
-                          (name, sector, website, email, datetime.now(),
+                          (name, sector, website, email, created_at,
                            analysis['overall_score'],
                            json.dumps(analysis['category_scores']),
                            json.dumps(analysis['recommendations'])))
